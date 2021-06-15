@@ -1,11 +1,12 @@
 package me.steven.carrier.mixin;
 
 import me.steven.carrier.Carrier;
-import me.steven.carrier.api.CarrierComponent;
-import me.steven.carrier.api.CarryingData;
+import me.steven.carrier.api.*;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -35,6 +36,19 @@ public abstract class MixinPlayerEntity extends LivingEntity  {
         CarryingData carrying = carrier.getCarryingData();
         if (carrying != null) {
             cir.setReturnValue(false);
+        }
+    }
+    @Inject(method = "dropInventory", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerInventory;dropAll()V", shift = At.Shift.AFTER))
+    private void c(CallbackInfo ci) {
+        CarrierComponent carrier = Carrier.HOLDER.get(this);
+        CarryingData carrying = carrier.getCarryingData();
+        if (carrying != null) {
+            Carriable<?> carriable = CarriableRegistry.INSTANCE.get(carrying.getType());
+            BlockPos pos = this.getBlockPos();
+            if (!world.isClient && carriable != null && world.getBlockState(pos).getMaterial().isReplaceable()) {
+                carriable.tryPlace(carrier, world, new CarriablePlacementContext(carrier, carriable, pos, Direction.DOWN, this.getHorizontalFacing()));
+            }
+            carrier.setCarryingData(null);
         }
     }
 }
